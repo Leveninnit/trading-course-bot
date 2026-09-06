@@ -96,6 +96,16 @@ class Database:
                     streak INTEGER NOT NULL DEFAULT 0,
                     PRIMARY KEY (guild_id, user_id)
                 );
+
+                CREATE TABLE IF NOT EXISTS reminders (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    guild_id INTEGER,
+                    user_id INTEGER NOT NULL,
+                    channel_id INTEGER,
+                    content TEXT NOT NULL,
+                    remind_at REAL NOT NULL,
+                    created_at REAL NOT NULL
+                );
                 """
             )
             await db.commit()
@@ -443,3 +453,27 @@ class Database:
             await db.commit()
 
         return awarded, streak, 0
+
+    # ---------- Reminders ----------
+
+    async def add_reminder(self, guild_id, user_id, channel_id, content, remind_at):
+        async with aiosqlite.connect(self.path) as db:
+            cursor = await db.execute(
+                "INSERT INTO reminders (guild_id, user_id, channel_id, content, remind_at, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (guild_id, user_id, channel_id, content, remind_at, time.time()),
+            )
+            await db.commit()
+            return cursor.lastrowid
+
+    async def get_due_reminders(self, now_ts):
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute("SELECT * FROM reminders WHERE remind_at <= ?", (now_ts,))
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+    async def delete_reminder(self, reminder_id):
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute("DELETE FROM reminders WHERE id = ?", (reminder_id,))
+            await db.commit()
