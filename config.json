@@ -1,0 +1,38 @@
+{
+  "brand_name": "Your Trading Course",
+  "brand_color": "0xF1C40F",
+  "guild_id": null,
+
+  "staff_role_ids": [],
+  "admin_role_ids": [],
+
+  "verified_role_id": null,
+  "welcome_channel_id": null,
+  "rules_channel_id": null,
+  "mod_log_channel_id": null,
+  "level_up_channel_id": null,
+
+  "ticket_category_id": null,
+  "ticket_support_role_ids": [],
+
+  "membership_tiers": {
+    "premium": { "role_id": null, "label": "Premium" },
+    "vip": { "role_id": null, "label": "VIP" }
+  },
+
+  "xp_per_message": 15,
+  "xp_cooldown_seconds": 60,
+
+  "spam_message_threshold": 5,
+  "spam_window_seconds": 6,
+  "spam_timeout_seconds": 60,
+  "warning_auto_timeout_threshold": 3,
+  "allow_invites": false,
+  "banned_words": [],
+  "scam_domains": ["dis-cord.com", "discordgift.site", "discordnitro.gift"],
+
+  "faq": {
+    "how do i get vip": "Check out the pricing channel to see how to upgrade to VIP access!",
+    "market hours": "NYSE regular hours are 9:30am–4:00pm ET, Monday to Friday."
+  }
+}
