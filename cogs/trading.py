@@ -9,6 +9,7 @@ from discord.ext import commands
 from discord import app_commands
 
 from utils.embeds import brand_embed
+from utils import ai
 
 # Common tickers -> CoinGecko coin IDs. Anything not in this map is looked up as a stock symbol instead.
 CRYPTO_IDS = {
@@ -156,14 +157,32 @@ class Trading(commands.Cog):
         embed = brand_embed(title=title, description=description)
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="quote", description="Get a random trading/investing quote for motivation.")
+    @app_commands.command(name="quote", description="Get a fresh trading/investing quote for motivation.")
     async def quote(self, interaction: discord.Interaction):
-        text, author = random.choice(QUOTES)
-        description = f'*"{text}"*'
-        if author:
-            description += f"\n— {author}"
+        await interaction.response.defer()
+        generated = await ai.generate_text(
+            "Write one brand-new, original one-line quote about trading, investing, or building "
+            "long-term wealth. It should sound wise and motivational and be under 25 words. Do NOT "
+            "attribute it to any real person -- it must be an original line, not a real quote. Reply "
+            "with ONLY the quote text itself: no quotation marks, no author, no extra commentary.",
+            system=(
+                "You write short, original, motivational one-liners for a trading/investing Discord "
+                "community. Never attribute a line to a real person. Never give financial advice."
+            ),
+            max_tokens=60,
+            temperature=1.1,
+        )
+        if generated:
+            clean = generated.strip().strip('"').strip("'").strip()
+            description = f'*"{clean}"*'
+        else:
+            # AI unavailable or failed -- fall back to the static list so the command still works.
+            text, author = random.choice(QUOTES)
+            description = f'*"{text}"*'
+            if author:
+                description += f"\n— {author}"
         embed = brand_embed(title="💬 Trading Wisdom", description=description)
-        await interaction.response.send_message(embed=embed)
+        await interaction.followup.send(embed=embed)
 
 
 async def setup(bot):
