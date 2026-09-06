@@ -81,6 +81,58 @@ class Engagement(commands.Cog):
         embed = brand_embed(title="🏆 Leaderboard", description="\n".join(lines))
         await interaction.response.send_message(embed=embed)
 
+    @app_commands.command(name="daily", description="Claim your daily XP reward (streaks earn bonus XP).")
+    async def daily(self, interaction: discord.Interaction):
+        base_xp = config.get("daily_base_xp", 50)
+        bonus_xp = config.get("daily_streak_bonus_xp", 5)
+        awarded, streak, seconds_left = await self.bot.db.claim_daily(
+            interaction.guild.id, interaction.user.id, base_xp, bonus_xp
+        )
+        if awarded is None:
+            hours, remainder = divmod(seconds_left, 3600)
+            minutes = remainder // 60
+            await interaction.response.send_message(
+                f"You've already claimed today's reward. Come back in **{hours}h {minutes}m** "
+                f"(current streak: {streak} 🔥).",
+                ephemeral=True,
+            )
+            return
+        embed = brand_embed(
+            title="✅ Daily Reward Claimed!",
+            description=f"You earned **{awarded} XP**!\n**Streak:** {streak} day(s) 🔥",
+        )
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="profile", description="View your (or someone else's) trading course profile.")
+    async def profile(self, interaction: discord.Interaction, member: discord.Member = None):
+        member = member or interaction.user
+        xp, level = await self.bot.db.get_xp(interaction.guild.id, member.id)
+        need = xp_threshold(level + 1)
+        membership = await self.bot.db.get_membership(interaction.guild.id, member.id)
+
+        if membership:
+            tier_cfg = config.get("membership_tiers", {}).get(membership["tier"], {})
+            tier_label = tier_cfg.get("label", membership["tier"].title())
+            if membership.get("expires_at"):
+                expiry = f"<t:{int(membership['expires_at'])}:R>"
+            else:
+                expiry = "Never (lifetime)"
+            membership_line = f"**{tier_label}** -- expires {expiry}"
+        else:
+            membership_line = "None"
+
+        embed = brand_embed(title=f"{member.display_name}'s Profile")
+        embed.set_thumbnail(url=member.display_avatar.url)
+        embed.add_field(name="Level", value=str(level), inline=True)
+        embed.add_field(name="XP", value=f"{xp} / {need}", inline=True)
+        embed.add_field(
+            name="Joined Server",
+            value=discord.utils.format_dt(member.joined_at, style="R") if member.joined_at else "Unknown",
+            inline=True,
+        )
+        embed.add_field(name="Membership", value=membership_line, inline=False)
+        await interaction.response.send_message(embed=embed)
+
     giveaway_group = app_commands.Group(name="giveaway", description="Manage giveaways")
 
     @giveaway_group.command(name="start", description="[Staff] Start a giveaway.")
