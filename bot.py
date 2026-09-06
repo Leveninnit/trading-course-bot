@@ -18,6 +18,8 @@ INITIAL_EXTENSIONS = [
     "cogs.support",
     "cogs.membership",
     "cogs.owner",
+    "cogs.trading",
+    "cogs.utility",
 ]
 
 
