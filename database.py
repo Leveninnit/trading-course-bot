@@ -78,6 +78,24 @@ class Database:
                     answer TEXT NOT NULL,
                     PRIMARY KEY (guild_id, trigger)
                 );
+
+                CREATE TABLE IF NOT EXISTS stickies (
+                    guild_id INTEGER NOT NULL,
+                    channel_id INTEGER NOT NULL,
+                    content TEXT NOT NULL,
+                    last_message_id INTEGER,
+                    set_by INTEGER,
+                    updated_at REAL NOT NULL,
+                    PRIMARY KEY (guild_id, channel_id)
+                );
+
+                CREATE TABLE IF NOT EXISTS daily_claims (
+                    guild_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    last_claim_at REAL NOT NULL DEFAULT 0,
+                    streak INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY (guild_id, user_id)
+                );
                 """
             )
             await db.commit()
@@ -329,3 +347,99 @@ class Database:
     async def seed_faq_if_empty(self, guild_id, faq_dict):
         for trigger, answer in faq_dict.items():
             await self.set_faq(guild_id, trigger.lower(), answer)
+
+    # ---------- Stickies ----------
+
+    async def set_sticky(self, guild_id, channel_id, content, set_by, message_id=None):
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                """
+                INSERT INTO stickies (guild_id, channel_id, content, last_message_id, set_by, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(guild_id, channel_id) DO UPDATE SET
+                    content = excluded.content, last_message_id = excluded.last_message_id,
+                    set_by = excluded.set_by, updated_at = excluded.updated_at
+                """,
+                (guild_id, channel_id, content, message_id, set_by, time.time()),
+            )
+            await db.commit()
+
+    async def get_sticky(self, guild_id, channel_id):
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                "SELECT * FROM stickies WHERE guild_id = ? AND channel_id = ?", (guild_id, channel_id)
+            )
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+    async def update_sticky_message(self, guild_id, channel_id, message_id):
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                "UPDATE stickies SET last_message_id = ? WHERE guild_id = ? AND channel_id = ?",
+                (message_id, guild_id, channel_id),
+            )
+            await db.commit()
+
+    async def remove_sticky(self, guild_id, channel_id):
+        async with aiosqlite.connect(self.path) as db:
+            cursor = await db.execute(
+                "DELETE FROM stickies WHERE guild_id = ? AND channel_id = ?", (guild_id, channel_id)
+            )
+            await db.commit()
+            return cursor.rowcount > 0
+
+    # ---------- Daily rewards ----------
+
+    async def claim_daily(self, guild_id, user_id, base_xp, streak_bonus_xp, now=None):
+        """Attempts to claim the daily XP reward.
+
+        Returns (awarded, streak, seconds_until_next):
+          - Still on cooldown: (None, current_streak, seconds_remaining)
+          - Claimed successfully: (xp_awarded, new_streak, 0)
+
+        A streak continues if the previous claim was within the last 48 hours (missing part of a
+        day is forgiven, but two full days off resets it back to 1).
+        """
+        now = now if now is not None else time.time()
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+
+            cursor = await db.execute(
+                "SELECT last_claim_at, streak FROM daily_claims WHERE guild_id = ? AND user_id = ?",
+                (guild_id, user_id),
+            )
+            row = await cursor.fetchone()
+
+            if row:
+                elapsed = now - row["last_claim_at"]
+                if elapsed < 86400:
+                    return None, row["streak"], int(86400 - elapsed)
+                streak = row["streak"] + 1 if elapsed < 172800 else 1
+            else:
+                streak = 1
+
+            awarded = base_xp + streak_bonus_xp * (streak - 1)
+
+            await db.execute(
+                """
+                INSERT INTO daily_claims (guild_id, user_id, last_claim_at, streak) VALUES (?, ?, ?, ?)
+                ON CONFLICT(guild_id, user_id) DO UPDATE SET
+                    last_claim_at = excluded.last_claim_at, streak = excluded.streak
+                """,
+                (guild_id, user_id, now, streak),
+            )
+
+            xp_cursor = await db.execute("SELECT xp FROM xp WHERE guild_id = ? AND user_id = ?", (guild_id, user_id))
+            xp_row = await xp_cursor.fetchone()
+            new_xp = (xp_row["xp"] if xp_row else 0) + awarded
+            await db.execute(
+                """
+                INSERT INTO xp (guild_id, user_id, xp, last_message_at) VALUES (?, ?, ?, 0)
+                ON CONFLICT(guild_id, user_id) DO UPDATE SET xp = excluded.xp
+                """,
+                (guild_id, user_id, new_xp),
+            )
+            await db.commit()
+
+        return awarded, streak, 0
