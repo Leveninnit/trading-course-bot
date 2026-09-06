@@ -24,6 +24,11 @@ PORT = int(os.getenv("PORT", "8080"))
 _owner_id_raw = os.getenv("OWNER_ID") or CONFIG.get("owner_id")
 OWNER_ID = int(_owner_id_raw) if _owner_id_raw else None
 
+# Optional -- AI-powered commands (/explain, /ask, /motivate, /lesson, and the upgraded /quote) are
+# disabled gracefully if this isn't set. Get a free key (no credit card) at https://aistudio.google.com/apikey
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+
 
 def get(key, default=None):
     return CONFIG.get(key, default)
