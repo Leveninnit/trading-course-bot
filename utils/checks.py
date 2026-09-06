@@ -39,3 +39,13 @@ def is_admin():
         return _has_any_role(member, config.get("admin_role_ids", []))
 
     return app_commands.check(predicate)
+
+
+def is_owner():
+    """Passes only for the hardcoded bot owner (config.OWNER_ID) -- independent of server roles or
+    Administrator permission. Use for bot-level config commands that should never be delegable."""
+
+    async def predicate(interaction: discord.Interaction) -> bool:
+        return config.OWNER_ID is not None and interaction.user.id == config.OWNER_ID
+
+    return app_commands.check(predicate)
