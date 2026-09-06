@@ -21,6 +21,9 @@ DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GUILD_ID = os.getenv("GUILD_ID") or CONFIG.get("guild_id")
 PORT = int(os.getenv("PORT", "8080"))
 
+_owner_id_raw = os.getenv("OWNER_ID") or CONFIG.get("owner_id")
+OWNER_ID = int(_owner_id_raw) if _owner_id_raw else None
+
 
 def get(key, default=None):
     return CONFIG.get(key, default)
