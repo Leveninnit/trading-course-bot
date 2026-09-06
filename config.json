@@ -24,6 +24,9 @@
   "xp_per_message": 15,
   "xp_cooldown_seconds": 60,
 
+  "daily_base_xp": 50,
+  "daily_streak_bonus_xp": 5,
+
   "spam_message_threshold": 5,
   "spam_window_seconds": 6,
   "spam_timeout_seconds": 60,
