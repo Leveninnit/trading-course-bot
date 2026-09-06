@@ -20,6 +20,7 @@ INITIAL_EXTENSIONS = [
     "cogs.owner",
     "cogs.trading",
     "cogs.utility",
+    "cogs.ai_features",
 ]
 
 
