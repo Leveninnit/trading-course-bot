@@ -25,9 +25,10 @@ _owner_id_raw = os.getenv("OWNER_ID") or CONFIG.get("owner_id")
 OWNER_ID = int(_owner_id_raw) if _owner_id_raw else None
 
 # Optional -- AI-powered commands (/explain, /ask, /motivate, /lesson, and the upgraded /quote) are
-# disabled gracefully if this isn't set. Get a free key (no credit card) at https://aistudio.google.com/apikey
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+# disabled gracefully if this isn't set. Uses OpenAI's API (platform.openai.com/api-keys) -- this is
+# billed pay-as-you-go, not free, so keep an eye on usage/spend limits at platform.openai.com/usage.
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 
 def get(key, default=None):
